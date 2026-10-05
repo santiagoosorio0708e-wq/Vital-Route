@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from schemas import EmergencyRequest, TriageResponse
 from triage_engine import TriageEngine
 from database_service import DatabaseService
+from security import verify_jwt_token
 
 app = FastAPI(
     title="VitalRoute Agente Autónomo Predictivo - CDMX",
@@ -25,9 +26,11 @@ app.add_middleware(
 
 db_service = DatabaseService()
 
-@app.post("/api/v1/triage/route", response_model=TriageResponse)
+# INYECCIÓN DE DEPENDENCIA DE SEGURIDAD (Depends(verify_jwt_token))
+@app.post("/api/v1/triage/route", response_model=TriageResponse, dependencies=[Depends(verify_jwt_token)])
 async def process_emergency(request: EmergencyRequest):
     """
+    [🔒 REQUIERE JWT]
     1. Recibe los signos vitales y ubicación exacta de la emergencia.
     2. El TriageEngine pondera matemáticamente la gravedad clínica.
     3. Identifica el recurso requerido (Ej. Cama UCI, Respirador).
@@ -35,10 +38,7 @@ async def process_emergency(request: EmergencyRequest):
     5. Bloquea el recurso transaccionalmente y retorna las instrucciones.
     """
     try:
-        # A. Matemática Predictiva
         score, severity, resource_id = TriageEngine.calculate_score(request.vitals)
-        
-        # B. Enrutamiento Espacial y Bloqueo (ACID)
         routing_result = db_service.route_emergency(request, score, severity, resource_id)
         
         if "error" in routing_result:
@@ -59,4 +59,21 @@ async def process_emergency(request: EmergencyRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Falla Crítica del Sistema: {str(e)}")
 
-# Ejecución de prueba en entorno local: uvicorn app.main:app --reload --port 5000
+
+# ---------------------------------------------------------
+# RUTA AUXILIAR: GENERADOR DE TOKENS PARA POSTMAN
+# (En producción esto lo generaría un servidor de Identidad, pero sirve para test local)
+# ---------------------------------------------------------
+@app.get("/api/v1/auth/generate-test-token")
+def generate_test_token():
+    import jwt
+    from datetime import datetime, timedelta
+    
+    SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_secret")
+    # Este token expira en 2 horas y tiene el claim del servicio autorizado
+    payload = {
+        "service": "vitalroute_gateway",
+        "exp": datetime.utcnow() + timedelta(hours=2)
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return {"access_token": token, "type": "bearer"}
