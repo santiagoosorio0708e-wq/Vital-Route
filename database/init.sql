@@ -1,60 +1,134 @@
-CREATE DATABASE IF NOT EXISTS vitalroute;
+-- database/init.sql
+-- Motor MySQL 8.0+ Requerido para Funciones Geoespaciales y JSON
+
+CREATE DATABASE IF NOT EXISTS vitalroute
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
 USE vitalroute;
 
--- Clínicas y Hospitales de la red
-CREATE TABLE IF NOT EXISTS clinics (
+-- ==========================================
+-- 1. TABLAS DE CATÁLOGO Y CONFIGURACIÓN
+-- ==========================================
+
+-- Tabla de tipos de recursos médicos para mayor extensibilidad
+CREATE TABLE IF NOT EXISTS resource_categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    location_lat DECIMAL(10, 8) NOT NULL,
-    location_lng DECIMAL(11, 8) NOT NULL,
-    status ENUM('active', 'inactive') DEFAULT 'active',
+    name VARCHAR(100) NOT NULL UNIQUE,
+    priority_level INT NOT NULL DEFAULT 1 COMMENT 'Nivel de prioridad en triage (1 mayor)',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Catálogo de recursos médicos críticos
 CREATE TABLE IF NOT EXISTS resources (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    category_id INT NOT NULL,
     name VARCHAR(255) NOT NULL,
-    category ENUM('bed_uci', 'blood', 'equipment', 'general_bed') NOT NULL,
-    description TEXT
-);
+    description TEXT,
+    is_critical BOOLEAN DEFAULT TRUE COMMENT 'Indica si requiere monitoreo estricto',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    FOREIGN KEY (category_id) REFERENCES resource_categories(id)
+) ENGINE=InnoDB;
+
+-- ==========================================
+-- 2. INFRAESTRUCTURA HOSPITALARIA
+-- ==========================================
+
+-- Clínicas y Hospitales de la red
+CREATE TABLE IF NOT EXISTS clinics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location POINT NOT NULL SRID 4326 COMMENT 'Coordenadas Geoespaciales (Longitud, Latitud)',
+    address VARCHAR(500),
+    contact_phone VARCHAR(50),
+    capacity_level ENUM('Nivel 1', 'Nivel 2', 'Nivel 3', 'Nivel 4') NOT NULL,
+    status ENUM('active', 'inactive', 'saturated') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    SPATIAL INDEX idx_location (location)
+) ENGINE=InnoDB;
 
 -- Inventario de recursos por clínica (relación N:M transaccional)
 CREATE TABLE IF NOT EXISTS clinic_inventory (
     clinic_id INT,
     resource_id INT,
     quantity INT NOT NULL DEFAULT 0,
+    capacity INT NOT NULL DEFAULT 0 COMMENT 'Capacidad máxima de este recurso en la clínica',
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (clinic_id, resource_id),
     FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE CASCADE,
     FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB;
 
--- Registro de Emergencias y Triaje
+-- ==========================================
+-- 3. GESTIÓN DE EMERGENCIAS Y TRIAJE
+-- ==========================================
+
 CREATE TABLE IF NOT EXISTS emergencies (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id CHAR(36) PRIMARY KEY COMMENT 'UUID para evitar enumeración y mayor seguridad',
     patient_name VARCHAR(255) NOT NULL,
+    patient_identifier VARCHAR(100) NULL COMMENT 'Documento o ID anonimizado en hash',
+    triage_score DECIMAL(5, 2) NULL COMMENT 'Puntaje matemático calculado por el agente IA',
     severity ENUM('low', 'medium', 'high', 'critical') NOT NULL,
-    required_resource_id INT,
+    required_resource_id INT NULL,
+    origin_location POINT NULL SRID 4326 COMMENT 'Ubicación desde donde se reporta la emergencia',
     assigned_clinic_id INT NULL,
-    status ENUM('pending', 'en_route', 'resolved') DEFAULT 'pending',
+    status ENUM('pending', 'evaluating', 'en_route', 'admitted', 'resolved', 'cancelled') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (required_resource_id) REFERENCES resources(id) ON DELETE SET NULL,
-    FOREIGN KEY (assigned_clinic_id) REFERENCES clinics(id) ON DELETE SET NULL
-);
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (required_resource_id) REFERENCES resources(id) ON DELETE RESTRICT,
+    FOREIGN KEY (assigned_clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- Historial de estado de emergencias (Para trazabilidad y analítica de tiempos de respuesta)
+CREATE TABLE IF NOT EXISTS emergency_status_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    emergency_id CHAR(36) NOT NULL,
+    previous_status VARCHAR(50) NULL,
+    new_status VARCHAR(50) NOT NULL,
+    changed_by VARCHAR(255) DEFAULT 'system',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (emergency_id) REFERENCES emergencies(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 -- ==========================================
--- DATOS SEMILLA (SIMULACIÓN DE CLÍNICAS)
+-- 4. AUDITORÍA (SEGURIDAD Y CUMPLIMIENTO)
 -- ==========================================
-INSERT INTO resources (name, category) VALUES 
-('Cama UCI', 'bed_uci'),
-('Sangre O-', 'blood'),
-('Respirador Artificial', 'equipment');
 
-INSERT INTO clinics (name, location_lat, location_lng) VALUES 
-('Hospital Central', 4.6097, -74.0817),
-('Clínica del Norte', 4.6534, -74.0556);
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    table_name VARCHAR(100) NOT NULL,
+    record_id VARCHAR(255) NOT NULL,
+    action ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL,
+    old_value JSON NULL,
+    new_value JSON NULL,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    changed_by VARCHAR(255) DEFAULT 'system'
+) ENGINE=InnoDB;
 
-INSERT INTO clinic_inventory (clinic_id, resource_id, quantity) VALUES 
-(1, 1, 5), (1, 2, 10), (1, 3, 2),
-(2, 1, 0), (2, 2, 5), (2, 3, 1);
+-- ==========================================
+-- 5. DATOS SEMILLA (SIMULACIÓN DE CLÍNICAS)
+-- ==========================================
+INSERT INTO resource_categories (id, name, priority_level) VALUES 
+(1, 'Cuidados Intensivos (UCI)', 1),
+(2, 'Banco de Sangre', 1),
+(3, 'Equipamiento de Soporte Vital', 2),
+(4, 'Camas de Hospitalización', 3);
+
+INSERT INTO resources (id, category_id, name, description, is_critical) VALUES 
+(1, 1, 'Cama UCI Adulto', 'Unidad de cuidados intensivos completamente equipada', TRUE),
+(2, 2, 'Sangre O Negativo', 'Unidad de sangre universal', TRUE),
+(3, 3, 'Respirador Artificial Portátil', 'Ventilador mecánico para traslado', TRUE);
+
+-- Insertamos clínicas con SRID 4326 (Longitud, Latitud)
+INSERT INTO clinics (id, name, location, address, capacity_level) VALUES 
+(1, 'Hospital Central Universitario', ST_GeomFromText('POINT(-74.0817 4.6097)', 4326), 'Av. Principal 123', 'Nivel 4'),
+(2, 'Clínica de Especialidades del Norte', ST_GeomFromText('POINT(-74.0556 4.6534)', 4326), 'Calle 100 #15-20', 'Nivel 3');
+
+INSERT INTO clinic_inventory (clinic_id, resource_id, quantity, capacity) VALUES 
+(1, 1, 5, 20), (1, 2, 10, 50), (1, 3, 2, 10),
+(2, 1, 0, 10), (2, 2, 5, 25), (2, 3, 1, 5);
