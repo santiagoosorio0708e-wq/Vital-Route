@@ -124,11 +124,13 @@ INSERT INTO resources (id, category_id, name, description, is_critical) VALUES
 (2, 2, 'Sangre O Negativo', 'Unidad de sangre universal', TRUE),
 (3, 3, 'Respirador Artificial Portátil', 'Ventilador mecánico para traslado', TRUE);
 
--- Insertamos clínicas con SRID 4326 (Longitud, Latitud)
+-- Insertamos clínicas de Ciudad de México (CDMX) con SRID 4326 (Longitud, Latitud)
 INSERT INTO clinics (id, name, location, address, capacity_level) VALUES 
-(1, 'Hospital Central Universitario', ST_GeomFromText('POINT(-74.0817 4.6097)', 4326), 'Av. Principal 123', 'Nivel 4'),
-(2, 'Clínica de Especialidades del Norte', ST_GeomFromText('POINT(-74.0556 4.6534)', 4326), 'Calle 100 #15-20', 'Nivel 3');
+(1, 'Hospital General de México Dr. Eduardo Liceaga', ST_GeomFromText('POINT(-99.1517 19.4128)', 4326), 'Dr. Balmis 148, Doctores, Cuauhtémoc, CDMX', 'Nivel 4'),
+(2, 'Centro Médico Nacional Siglo XXI', ST_GeomFromText('POINT(-99.1543 19.4074)', 4326), 'Av. Cuauhtémoc 330, Doctores, Cuauhtémoc, CDMX', 'Nivel 4'),
+(3, 'Hospital Juárez de México', ST_GeomFromText('POINT(-99.1362 19.4827)', 4326), 'Av. Instituto Politécnico Nacional 5160, Magdalena de las Salinas, CDMX', 'Nivel 3');
 
 INSERT INTO clinic_inventory (clinic_id, resource_id, quantity, capacity) VALUES 
-(1, 1, 5, 20), (1, 2, 10, 50), (1, 3, 2, 10),
-(2, 1, 0, 10), (2, 2, 5, 25), (2, 3, 1, 5);
+(1, 1, 15, 50), (1, 2, 30, 100), (1, 3, 10, 25),
+(2, 1, 20, 60), (2, 2, 45, 120), (2, 3, 15, 30),
+(3, 1, 5, 20), (3, 2, 15, 40), (3, 3, 4, 15);
