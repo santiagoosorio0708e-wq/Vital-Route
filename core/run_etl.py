@@ -1,7 +1,5 @@
-import time
-import schedule
-import os
 import sys
+import os
 
 # Asegurar que los módulos internos sean encontrados
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -35,17 +33,9 @@ def etl_job():
     print("="*60)
 
 if __name__ == "__main__":
+    # Este script está diseñado para ser ejecutado de manera stateless
+    # por un CRON nativo de Linux/Windows o mediante un Webhook.
     print("==========================================================")
-    print("🚀 VITALROUTE - WORKER ASÍNCRONO ETL (AGENTE CDMX) INICIADO")
+    print("🚀 VITALROUTE - EJECUCIÓN ÚNICA ETL (CRON/WEBHOOK MODE)")
     print("==========================================================")
-    
-    # Ejecutamos una vez inmediatamente
     etl_job()
-    
-    # Programamos la sincronización cada 1 minuto (Tiempo real para emergencias médicas)
-    schedule.every(1).minutes.do(etl_job)
-    
-    print("⏳ Worker en ejecución constante. Presiona Ctrl+C para salir.")
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
