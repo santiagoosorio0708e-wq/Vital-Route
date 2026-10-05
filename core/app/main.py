@@ -1,10 +1,10 @@
+import os
+from datetime import datetime, timedelta, timezone
+import jwt
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-import os
-import sys
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
+# Importaciones limpias sin hacks de sys.path (Requiere ejecutar uvicorn desde core/app o usar módulo)
 from schemas import EmergencyRequest, TriageResponse
 from triage_engine import TriageEngine
 from database_service import DatabaseService
@@ -16,11 +16,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Permitir conexiones desde el API Gateway de Node.js
+# Permitir conexiones desde el API Gateway de Node.js (Se habilita GET para el token de pruebas)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
-    allow_methods=["POST"],
+    allow_methods=["*"], 
     allow_headers=["*"],
 )
 
@@ -62,18 +62,17 @@ async def process_emergency(request: EmergencyRequest):
 
 # ---------------------------------------------------------
 # RUTA AUXILIAR: GENERADOR DE TOKENS PARA POSTMAN
-# (En producción esto lo generaría un servidor de Identidad, pero sirve para test local)
+# (En producción esto lo generaría un servidor de Identidad)
 # ---------------------------------------------------------
 @app.get("/api/v1/auth/generate-test-token")
 def generate_test_token():
-    import jwt
-    from datetime import datetime, timedelta
-    
     SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_secret")
-    # Este token expira en 2 horas y tiene el claim del servicio autorizado
+    
+    # Práctica moderna: usar timezone.utc en lugar de utcnow() (deprecado en Python 3.12)
     payload = {
         "service": "vitalroute_gateway",
-        "exp": datetime.utcnow() + timedelta(hours=2)
+        "exp": datetime.now(timezone.utc) + timedelta(hours=2)
     }
+    
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return {"access_token": token, "type": "bearer"}

@@ -26,7 +26,10 @@ def verify_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(securit
         
         # Validación extra: Asegurar que quien llama es explícitamente nuestro API Gateway Node.js
         if payload.get("service") != "vitalroute_gateway":
-            raise HTTPException(status_code=403, detail="Ciberseguridad: Servicio no autorizado para consumir el Motor de Decisión")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Ciberseguridad: Servicio no autorizado para consumir el Motor de Decisión"
+            )
             
         return payload
         
