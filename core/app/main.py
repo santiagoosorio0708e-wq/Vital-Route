@@ -1,0 +1,62 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from schemas import EmergencyRequest, TriageResponse
+from triage_engine import TriageEngine
+from database_service import DatabaseService
+
+app = FastAPI(
+    title="VitalRoute Agente Autónomo Predictivo - CDMX",
+    description="Motor de decisión central. Evalúa gravedad matemática y enruta geoespacialmente ambulancias a hospitales con disponibilidad confirmada en tiempo real.",
+    version="1.0.0"
+)
+
+# Permitir conexiones desde el API Gateway de Node.js
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_methods=["POST"],
+    allow_headers=["*"],
+)
+
+db_service = DatabaseService()
+
+@app.post("/api/v1/triage/route", response_model=TriageResponse)
+async def process_emergency(request: EmergencyRequest):
+    """
+    1. Recibe los signos vitales y ubicación exacta de la emergencia.
+    2. El TriageEngine pondera matemáticamente la gravedad clínica.
+    3. Identifica el recurso requerido (Ej. Cama UCI, Respirador).
+    4. El motor espacial busca en CDMX (Fórmula de Haversine).
+    5. Bloquea el recurso transaccionalmente y retorna las instrucciones.
+    """
+    try:
+        # A. Matemática Predictiva
+        score, severity, resource_id = TriageEngine.calculate_score(request.vitals)
+        
+        # B. Enrutamiento Espacial y Bloqueo (ACID)
+        routing_result = db_service.route_emergency(request, score, severity, resource_id)
+        
+        if "error" in routing_result:
+            raise HTTPException(status_code=404, detail=routing_result["error"])
+            
+        return TriageResponse(
+            emergency_id=routing_result["emergency_id"],
+            patient_name=request.patient_name,
+            triage_score=score,
+            severity=severity,
+            assigned_clinic_id=routing_result["clinic_id"],
+            clinic_name=routing_result["clinic_name"],
+            distance_km=round(routing_result["distance_km"], 2),
+            message="El Agente ha enrutado la emergencia exitosamente. Recurso médico reservado."
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Falla Crítica del Sistema: {str(e)}")
+
+# Ejecución de prueba en entorno local: uvicorn app.main:app --reload --port 5000
