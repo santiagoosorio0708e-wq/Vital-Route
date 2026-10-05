@@ -1,0 +1,38 @@
+# Entornos Virtuales y Dependencias de Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Variables de Entorno y Secretos
+.env
+.env.local
+application-secret.properties
+
+# Node.js
+node_modules/
+dist/
+build/
+.npm/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs y Editores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
