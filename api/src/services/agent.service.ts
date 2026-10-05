@@ -19,13 +19,23 @@ export class AgentService {
      */
     async routeEmergency(payload: any, jwtToken: string) {
         try {
-            // TODO (Dev B): Construir la petición HTTP usando axios hacia:
-            // POST ${this.agentUrl}/api/v1/triage/route
-            // Inyectar el jwtToken en los headers (Authorization: Bearer)
-            
-            throw new Error("Dev B: Función routeEmergency pendiente de implementar.");
-        } catch (error) {
-            console.error("Error conectando con el Agente Predictivo:", error);
+            // Implementación completa de la petición HTTP hacia el motor Python
+            const response = await axios.post(
+                `${this.agentUrl}/api/v1/triage/route`,
+                payload,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${jwtToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            return response.data;
+        } catch (error: any) {
+            console.error(
+                "Error crítico conectando con el Agente Predictivo (Python):", 
+                error?.response?.data || error.message
+            );
             throw error;
         }
     }
