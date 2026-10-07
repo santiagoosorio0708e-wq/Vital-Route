@@ -29,6 +29,7 @@
     <li><a href="#prerrequisitos">Prerrequisitos</a></li>
     <li><a href="#instalación">Instalación</a></li>
     <li><a href="#uso-y-características">Uso y Características</a></li>
+    <li><a href="#capa-en-tiempo-real">Capa en Tiempo Real</a></li>
     <li><a href="#pruebas">Pruebas</a></li>
     <li><a href="#hoja-de-ruta">Hoja de Ruta</a></li>
     <li><a href="#contacto">Contacto</a></li>
@@ -69,17 +70,24 @@ VitalRoute/
 │   └── procedures.sql     # Triggers y procedimientos almacenados MySQL
 ├── api/                   # 🔌 [Dev B] Node.js API Gateway y WebSockets
 │   ├── src/
-│   │   ├── controllers/   # Lógica de endpoints REST
-│   │   ├── services/      # Comunicación con el Core Python
-│   │   ├── sockets/       # Gestores de conexión WebSocket
+│   │   ├── config/        # Carga y validación de variables de entorno
+│   │   ├── controllers/   # Endpoints REST (despacho y estado de la red)
+│   │   ├── events/        # Bus Pub/Sub y catálogo de tópicos
+│   │   ├── services/      # Core Python, MySQL, cifrado, flota, orquestación
+│   │   ├── sockets/       # Conexiones WebSocket y salas por rol
+│   │   ├── subscribers/   # Paramédico, hospital y centro de mando
+│   │   ├── types/         # Contratos compartidos
 │   │   └── index.ts       # Punto de entrada de la API
 │   └── package.json
-└── web/                   # 🖥️ [Dev B] Dashboard Reactivo (Frontend)
-    ├── src/
-    │   ├── components/    # Componentes de UI
-    │   ├── views/         # Vistas principales del centro de mando
-    │   └── main.ts        # Punto de entrada del cliente
-    └── package.json
+├── web/                   # 🖥️ [Dev B] Centro de mando reactivo (Frontend)
+│   ├── src/
+│   │   ├── components/    # Mapa, alertas, inventario, bitácora, captura
+│   │   ├── hooks/         # Conexión WebSocket y estado en vivo
+│   │   ├── lib/           # Tipos del contrato con el gateway
+│   │   └── App.tsx        # Composición del tablero
+│   └── package.json
+└── docs/                  # 📐 Documentación de arquitectura
+    └── arquitectura-tiempo-real.md
 ```
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
@@ -137,6 +145,52 @@ VitalRoute/
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 
+## ⚡ Capa en Tiempo Real
+
+El API Gateway mantiene una conexión TCP persistente con cada cliente, así que
+el dato llega en el momento en que ocurre y no cuando el navegador se acuerda de
+preguntar. Cada cliente se identifica al conectarse y entra a su sala: el
+hospital que recibe al paciente ve su alerta, la ambulancia asignada ve su ruta
+y solo el centro de mando ve la red completa.
+
+Cuando el motor de decisión de la Parte 1 resuelve a qué hospital va el
+paciente, el orquestador publica **una** decisión en el bus de eventos y tres
+suscriptores reaccionan en paralelo y de forma independiente:
+
+| Suscriptor         | Qué hace                                                        |
+| ------------------ | --------------------------------------------------------------- |
+| Paramédico         | Envía la ruta y los datos del paciente cifrados con AES-256-GCM  |
+| Hospital destino   | Levanta la alerta de "Trauma Entrante" con severidad y ETA       |
+| Centro de mando    | Dibuja el despacho en el mapa y refresca los tableros de stock   |
+
+El detalle completo (salas, tópicos, seguridad, límites conocidos y catálogo de
+endpoints y eventos) está en
+[`docs/arquitectura-tiempo-real.md`](docs/arquitectura-tiempo-real.md).
+
+### Levantar el entorno en tiempo real
+
+Antes de arrancar, genera la llave de cifrado y pégala en el `.env`:
+
+```sh
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Con la base de datos y el core de Python ya corriendo, en dos terminales:
+
+```sh
+cd api && npm run dev     # gateway y WebSockets en el puerto 3000
+cd web && npm run dev     # centro de mando en el puerto 5173
+```
+
+El centro de mando lee la URL del gateway de `VITE_GATEWAY_URL`. Copia
+`web/.env.example` a `web/.env.local` si cambiaste el puerto.
+
+Para ensayar el tablero sin el core de Python, pon `ENABLE_DISPATCH_DRILL=true`
+en el `.env` y usa `POST /api/v1/dispatch/drill`. El simulacro no calcula
+triaje y marca la decisión con `source: "drill"`.
+
+<p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
+
 ## 🧪 Pruebas
 
 Para ejecutar las pruebas en cada entorno:
@@ -151,9 +205,9 @@ Para ejecutar las pruebas en cada entorno:
 - [x] Diseñar arquitectura inicial y estructura de carpetas.
 - [ ] Implementar el ETL y algoritmo de triaje matemático en Python (Dev A).
 - [ ] Definir esquemas MySQL, store procedures y triggers (Dev A).
-- [ ] Desarrollar API Gateway en Node.js y orquestación WebSocket (Dev B).
-- [ ] Construir dashboard de monitoreo en tiempo real (Dev B).
-- [ ] Integrar Core Python con API Gateway vía REST/gRPC.
+- [x] Desarrollar API Gateway en Node.js y orquestación WebSocket (Dev B).
+- [x] Construir dashboard de monitoreo en tiempo real (Dev B).
+- [x] Integrar Core Python con API Gateway vía REST autenticado con JWT.
 - [ ] Despliegue a producción.
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
