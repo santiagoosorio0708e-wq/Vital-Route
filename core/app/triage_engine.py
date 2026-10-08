@@ -1,8 +1,16 @@
+import os
+
 class TriageEngine:
     """
-    Cerebro Matemático del Agente Autónomo.
+    Cerebro Matemático y de IA del Agente Autónomo.
     Evalúa constantes vitales para determinar gravedad y recurso necesario en milisegundos.
     """
+    # Inicialización segura de la API Key del Agente, siguiendo las reglas de seguridad
+    AGENT_API_KEY = os.getenv("AGENT_API_KEY")
+    
+    if not AGENT_API_KEY:
+        print("Advertencia: AGENT_API_KEY no encontrada. El agente funcionará en modo degradado (solo matemático).")
+        
     @staticmethod
     def calculate_score(vitals):
         """

@@ -1,5 +1,10 @@
 import os
 from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
+
+# Cargar variables de entorno antes de importar otros módulos
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+
 import jwt
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
