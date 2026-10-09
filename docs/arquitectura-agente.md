@@ -63,6 +63,7 @@ petición.
 | `llm/fake.client.ts` | Modelo falso para ensayar sin gastar crédito. |
 | `tools/registry.ts` | Catálogo de herramientas. |
 | `tools/dispatch-emergency.tool.ts` | La única herramienta del Sprint 1. |
+| `core/costo.ts` | Calcula lo que costó la tarea con los precios del panel. |
 | `config/env.ts` | Lee el `.env` y valida lo imprescindible. |
 
 El modelo está detrás de la interfaz `LlmClient`, así que cambiar de proveedor
@@ -96,6 +97,20 @@ npm run dev -- "Hombre de 54 anos, dolor en el pecho, pulso 140, presion 80, oxi
 Para ensayar sin gastar crédito del reto y sin el core de Python, con
 `AGENT_FAKE_LLM=true`, `ENABLE_DISPATCH_DRILL=true` en el `.env` y
 `AGENT_DISPATCH_PATH=/api/v1/dispatch/drill`.
+
+Los tres casos de prueba del sprint están en `agent/pruebas/reportes.md` y se
+corren en fila con `./pruebas/correr.sh`.
+
+## Cuánto cuesta cada tarea
+
+El agente suma los tokens de todas las vueltas y los multiplica por el precio
+del panel, que se configura en `AGENT_PRICE_IN_USD` y `AGENT_PRICE_OUT_USD`
+(dólares por millón de tokens). La entrada y la salida se cuentan por separado
+porque se cobran distinto. Si los precios quedan en cero, el agente corre
+igual y avisa que el costo no se está midiendo.
+
+Una tarea toma dos vueltas del ciclo: una para que el modelo pida la
+herramienta y otra para que redacte el resumen.
 
 ## Qué está probado y qué no
 

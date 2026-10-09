@@ -93,10 +93,13 @@ VitalRoute/
 │   │   ├── llm/           # Cliente de Grok y modelo falso para ensayos
 │   │   ├── tools/         # Catálogo de herramientas
 │   │   └── index.ts       # Entrada por línea de comandos
+│   ├── pruebas/           # Casos de prueba del sprint y script para correrlos
 │   └── package.json
 └── docs/                  # 📐 Documentación de arquitectura
     ├── arquitectura-tiempo-real.md
-    └── arquitectura-agente.md
+    ├── arquitectura-agente.md
+    ├── reporte-tecnico-s1.md
+    └── guion-video-s1.md
 ```
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
@@ -217,12 +220,22 @@ cd agent && npm install
 npm run dev -- "Paciente Ana Reyes, atropellada en Chapultepec. Pulso 138, presion 78, oxigeno 81. lat 19.4195 lon -99.1620"
 ```
 
-La llave del reto se lee de `RETO_API_KEY` en el `.env` y nunca se escribe en
+La llave del reto se lee de `AGENT_API_KEY` en el `.env` y nunca se escribe en
 el código. Para ensayar el ciclo sin gastar crédito está `AGENT_FAKE_LLM=true`,
 que usa un modelo falso.
 
+Al final de cada tarea el agente reporta los tokens y el costo en dólares. El
+precio por millón de tokens sale del panel del reto y se configura en
+`AGENT_PRICE_IN_USD` y `AGENT_PRICE_OUT_USD`.
+
+Los tres casos de prueba del sprint (crítico, gravedad media y datos
+incompletos) están en [`agent/pruebas/reportes.md`](agent/pruebas/reportes.md)
+y se corren en fila con `./pruebas/correr.sh`.
+
 El detalle (el ciclo, las piezas, la seguridad y qué está probado y qué no)
-está en [`docs/arquitectura-agente.md`](docs/arquitectura-agente.md).
+está en [`docs/arquitectura-agente.md`](docs/arquitectura-agente.md). El
+reporte de la entrega, con decisiones, resultados y costo, está en
+[`docs/reporte-tecnico-s1.md`](docs/reporte-tecnico-s1.md).
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 
