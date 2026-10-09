@@ -1,5 +1,6 @@
 -- database/procedures.sql
 
+SET NAMES utf8mb4;
 USE vitalroute;
 
 DELIMITER //
@@ -88,7 +89,9 @@ CREATE PROCEDURE find_nearest_clinics_with_availability(
 BEGIN
     DECLARE v_origin POINT;
     -- Crear punto geoespacial asegurando SRID 4326 (Sistema Mundial estándar GPS)
-    SET v_origin = ST_GeomFromText(CONCAT('POINT(', p_lng, ' ', p_lat, ')'), 4326);
+    -- Mismo criterio que en init.sql: las coordenadas van en orden
+    -- longitud-latitud, asi que hay que indicarlo con 'axis-order=long-lat'.
+    SET v_origin = ST_GeomFromText(CONCAT('POINT(', p_lng, ' ', p_lat, ')'), 4326, 'axis-order=long-lat');
 
     SELECT 
         c.id, 
