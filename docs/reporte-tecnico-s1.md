@@ -4,9 +4,8 @@
 **Entrega:** S1, agente corriendo end-to-end
 **Repositorio:** https://github.com/santiagoosorio0708e-wq/Vital-Route
 
-> Hay valores marcados como PENDIENTE. Son los que salen de la corrida con
-> Grok real, que todavia no se ha hecho porque la llave la administra el otro
-> integrante del equipo. Se llenan antes de enviar el formulario.
+**Estado: el agente corre de punta a punta con Grok real.** Los numeros de
+este reporte salen de la corrida del 9 de octubre de 2026.
 
 ## El problema
 
@@ -82,69 +81,93 @@ lugar de intentar la llamada.
 
 ## Que se probo
 
-**Ciclo completo con modelo falso contra el gateway, en modo simulacro.**
-Tres reportes distintos (critico, gravedad media, datos incompletos). Los tres
-despacharon, cada uno con una ambulancia distinta:
+**Ciclo completo con Grok real contra el gateway, en modo simulacro.** Tres
+reportes distintos, escritos como los dictaria un operador telefonico:
 
-| Caso | Ambulancia | Hospital | Distancia |
-| --- | --- | --- | --- |
-| Critico | AMB-01 (CDMX-4471) | Hospital General de Mexico | 1.31 km |
-| Gravedad media | AMB-05 (CDMX-2748) | Hospital General de Mexico | 2.45 km |
-| Datos incompletos | AMB-04 (CDMX-6032) | Hospital General de Mexico | 2.93 km |
+| Caso | Pasos | Que hizo el agente |
+| --- | --- | --- |
+| Critico | 2 | Despacho AMB-04 al Hospital General, 1.31 km |
+| Gravedad media | 2 | Despacho AMB-05 al Hospital General, 2.45 km |
+| Datos incompletos | 1 | No despacho: pidio los signos vitales que faltaban |
 
-En la terminal del gateway aparecieron, para cada caso, las dos salidas de
+En la terminal del gateway aparecieron, para los dos despachos, las salidas de
 tiempo real: `[despacho] Ruta cifrada enviada a AMB-xx` y `[alerta] Trauma
 entrante en Hospital General de Mexico`.
 
+**El caso de datos incompletos es el resultado mas interesante.** El reporte
+decia que una senora se desmayo, que respiraba con dificultad y que tenia el
+oxigeno en 88, sin presion arterial y sin direccion. Grok no llamo la
+herramienta. Respondio:
+
+> "Faltan signos vitales. Necesito el pulso y la presion sistolica. No
+> despacho hasta tenerlos."
+
+El modelo falso, con ese mismo texto, invento coordenadas por defecto y
+despacho una ambulancia a "Paciente sin identificar". Esa diferencia es la
+prueba de que el agente esta razonando y no rellenando campos.
+
 **Camino de error.** Con el gateway apagado, la herramienta falla con
-`ECONNREFUSED`, el agente se lo cuenta al modelo y cierra con "El despacho no
-se pudo completar" en lugar de romperse.
+`ECONNREFUSED`, el agente se lo cuenta al modelo y cierra reportandolo en
+lugar de romperse.
 
 **Compilacion.** TypeScript sin errores en Node 22 y Node 24.
 
 ## Que fallo o quedo a medias
 
-**La llamada real a Grok no se ha probado.** Es lo pendiente mas importante.
-El formato de herramientas que usa el cliente es el de la API de xAI, que es
-lo que documenta el panel del reto, pero es una suposicion hasta que la
-primera llamada real la confirme. Si el formato difiere, el ajuste cae en un
-solo archivo, `agent/src/llm/grok.client.ts`.
-
-**El modelo falso no entiende lenguaje.** Saca los numeros con expresiones
-regulares, y se nota: en el caso de datos incompletos invento coordenadas por
-defecto y registro al paciente como "sin identificar", en lugar de preguntar.
-Esa diferencia es exactamente la que debe cubrir Grok, y es la prueba de que
-el modelo falso sirve para la mecanica y no para la comprension.
+**El calculo de costo estaba mal y hubo que corregirlo.** La primera version
+sumaba `prompt_tokens` mas `completion_tokens`. Al ver los numeros reales no
+cuadraban: el caso critico reportaba 3120 tokens totales, pero 2750 de entrada
+mas 112 de salida dan 2862. Faltaban 258. Son tokens de razonamiento interno
+de `grok-4.6`, que se cobran y no aparecen en `completion_tokens`. Con el
+calculo viejo el costo habria salido mas barato de lo real, hasta un 35% menos
+en el caso de datos incompletos. Ahora la salida se obtiene restando la
+entrada del total.
 
 **El simulacro no calcula triaje real.** En modo `drill` el puntaje sale en 0
-y la gravedad queda fija en `high`. Con el core de Python conectado, ese
-puntaje lo calcula el motor de la Parte 1.
+y la gravedad queda fija en `high`, asi que el caso de gravedad media no se
+distingue del critico. Con el core de Python conectado, ese puntaje lo calcula
+el motor de la Parte 1.
 
-**Bug abierto en el motor de triaje.** En `core/app/triage_engine.py` los
-casos de gravedad media y baja se asignan al recurso 4, que no existe en el
-seed de `init.sql` (solo hay recursos 1 a 3). Esos casos fallan con error de
-llave foranea. Los criticos y altos funcionan. Queda corregido antes del
-cierre del sprint.
+**Bug abierto en el motor de triaje, todavia sin destapar.** En
+`core/app/triage_engine.py` los casos de gravedad media y baja se asignan al
+recurso 4, que no existe en el seed de `init.sql` (solo hay recursos 1 a 3).
+En modo simulacro no salta, porque el triaje no se ejecuta. Saltara en cuanto
+se conecte el core de Python, y el caso de prueba 2 es el que lo va a destapar.
 
 **MySQL no conectado en la maquina de pruebas.** El gateway lo detecto y uso
 el catalogo semilla de CDMX, que es el comportamiento previsto. El dato real
 sale cuando se levante la base.
 
+**El modelo falso sigue siendo util, con su limite.** Saca los numeros con
+expresiones regulares, asi que sirve para comprobar la mecanica del ciclo sin
+gastar credito, pero no la comprension. La diferencia quedo documentada arriba.
+
 ## Costo por tarea
 
-El agente reporta los tokens de entrada y salida al final de cada corrida y
-calcula el costo con los precios de `AGENT_PRICE_IN_USD` y
-`AGENT_PRICE_OUT_USD`, que se toman del panel del reto.
+El panel del reto no publica la tarifa del modelo, solo el credito gastado.
+Asi que el precio se midio: se anoto el gasto, se corrieron las tres tareas y
+se volvio a mirar. Subio de 0.02 a 0.04 dolares. Con 8460 tokens en total, eso
+da **2.36 dolares por millon de tokens**, que es el valor configurado en
+`AGENT_PRICE_IN_USD` y `AGENT_PRICE_OUT_USD`.
 
-| Caso | Pasos | Tokens entrada | Tokens salida | Costo USD |
-| --- | --- | --- | --- | --- |
-| Critico | 2 | PENDIENTE | PENDIENTE | PENDIENTE |
-| Gravedad media | 2 | PENDIENTE | PENDIENTE | PENDIENTE |
-| Datos incompletos | PENDIENTE | PENDIENTE | PENDIENTE | PENDIENTE |
+| Caso | Pasos | Entrada | Salida | Costo USD | Duracion |
+| --- | --- | --- | --- | --- | --- |
+| Critico | 2 | 2750 | 370 | 0.0074 | 7.9 s |
+| Gravedad media | 2 | 2778 | 539 | 0.0078 | 9.6 s |
+| Datos incompletos | 1 | 1289 | 734 | 0.0048 | 15.5 s |
+| **Promedio** | | | | **0.0067** | 11.0 s |
 
-Con el modelo falso los tokens son cero, asi que la tabla solo se llena con la
-corrida real. Cada tarea toma dos vueltas del ciclo: una para que el modelo
-pida la herramienta y otra para que redacte el resumen.
+La suma calculada por el agente da 0.0200 dolares, el mismo numero que
+descontó el panel. Esa coincidencia es la que valida la medicion.
+
+Un despacho normal toma dos vueltas del ciclo: una para que el modelo pida la
+herramienta y otra para que redacte el resumen. El caso de datos incompletos
+tomo una sola, porque el modelo decidio no despachar, y aun asi fue el mas
+lento: 15.5 segundos, con 708 tokens de razonamiento. Decidir que no hay con
+que despachar cuesta mas que despachar.
+
+A este precio, con los 80 dolares asignados al equipo caben unas doce mil
+tareas.
 
 ## Como se corre
 
@@ -166,7 +189,7 @@ fila con `./pruebas/correr.sh`.
 
 ## Lo que sigue
 
-- Primera llamada real a Grok y llenado de la tabla de costo.
 - Corregir el recurso 4 en el motor de triaje.
-- Levantar MySQL y el core de Python para que el triaje sea real.
+- Levantar MySQL y el core de Python para que el triaje sea real, y volver a
+  correr los tres casos para comparar contra los numeros de arriba.
 - Las dos herramientas que faltan, en el Sprint 2.

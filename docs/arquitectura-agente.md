@@ -104,23 +104,34 @@ corren en fila con `./pruebas/correr.sh`.
 ## Cuánto cuesta cada tarea
 
 El agente suma los tokens de todas las vueltas y los multiplica por el precio
-del panel, que se configura en `AGENT_PRICE_IN_USD` y `AGENT_PRICE_OUT_USD`
-(dólares por millón de tokens). La entrada y la salida se cuentan por separado
-porque se cobran distinto. Si los precios quedan en cero, el agente corre
-igual y avisa que el costo no se está midiendo.
+configurado en `AGENT_PRICE_IN_USD` y `AGENT_PRICE_OUT_USD` (dólares por
+millón de tokens). Si quedan en cero, el agente corre igual y avisa que el
+costo no se está midiendo.
 
-Una tarea toma dos vueltas del ciclo: una para que el modelo pida la
-herramienta y otra para que redacte el resumen.
+Hay un detalle que cuesta dinero si se pasa por alto: `grok-4.6` razona antes
+de responder, y esos tokens se cobran pero **no** aparecen en
+`completion_tokens`. Se notan porque `total_tokens` es mayor que la suma de
+entrada y salida. Por eso la salida se calcula restando (`total - entrada`) y
+no leyendo `completion_tokens` directo. Contándolos mal, el costo sale hasta
+un tercio más barato de lo real.
+
+Una tarea de despacho toma dos vueltas del ciclo: una para que el modelo pida
+la herramienta y otra para que redacte el resumen.
 
 ## Qué está probado y qué no
 
-**Probado:** el ciclo completo con el modelo falso contra el gateway, incluido
-el camino de error cuando el gateway no responde. El agente pide la
-herramienta, la ejecuta, recibe el resultado y cierra con un resumen.
+**Probado con Grok real:** el ciclo completo contra el gateway, con tres
+reportes distintos. El formato de herramientas de la API de xAI resultó ser el
+correcto, así que no hubo que tocar el cliente. En el caso de datos
+incompletos el modelo se negó a despachar y pidió los signos vitales que
+faltaban, en lugar de rellenar los campos. Los números están en
+[`reporte-tecnico-s1.md`](reporte-tecnico-s1.md).
 
-**Sin probar todavía:** la llamada real a Grok por el gateway del reto. El
-formato de herramientas que se usa aquí es el de la API de xAI, que es lo que
-el panel del concurso documenta, pero la primera llamada real la hace el equipo.
+**Probado con el modelo falso:** lo mismo, más el camino de error cuando el
+gateway no responde.
+
+**Sin probar todavía:** el flujo con el core de Python y MySQL levantados. Lo
+anterior corrió en modo simulacro, donde el puntaje de triaje no se calcula.
 
 **Límite del modelo falso:** no entiende lenguaje, saca los números del texto
 con expresiones regulares. Existe para comprobar la mecánica, no la
