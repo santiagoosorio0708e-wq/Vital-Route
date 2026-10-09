@@ -23,6 +23,13 @@ export const env = {
   maxSteps: Number(process.env.AGENT_MAX_STEPS ?? 5),
 
   /**
+   * Precio del modelo en dolares por cada millon de tokens. Sale del panel
+   * del reto. Si queda en cero, el agente igual corre pero no reporta costo.
+   */
+  precioEntrada: Number(process.env.AGENT_PRICE_IN_USD ?? 0),
+  precioSalida: Number(process.env.AGENT_PRICE_OUT_USD ?? 0),
+
+  /**
    * Usa un modelo falso en lugar de Grok. Sirve para probar el ciclo completo
    * sin gastar credito del reto.
    */

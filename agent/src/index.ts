@@ -1,5 +1,6 @@
 import { assertConfig, env } from './config/env';
 import { Agent } from './core/agent';
+import { describirCosto } from './core/costo';
 import { FakeLlmClient } from './llm/fake.client';
 import { GrokClient } from './llm/grok.client';
 import { ToolRegistry } from './tools/registry';
@@ -35,6 +36,7 @@ async function main(): Promise<void> {
   console.log(`Pasos:        ${resultado.steps}`);
   console.log(`Herramientas: ${resultado.toolsUsed.join(', ') || 'ninguna'}`);
   console.log(`Tokens:       ${resultado.usage.totalTokens} (entrada ${resultado.usage.promptTokens}, salida ${resultado.usage.completionTokens})`);
+  console.log(`Costo:        ${describirCosto(resultado.usage)}`);
   console.log(`Duracion:     ${segundos} s`);
 }
 
