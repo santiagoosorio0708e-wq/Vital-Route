@@ -36,10 +36,14 @@ class DatabaseService:
             # Todo el enrutamiento es una gran transacción ACID
             conn.autocommit = False
             
-            # 1. Registrar entrada usando función geoespacial ST_GeomFromText
+            # 1. Registrar entrada usando función geoespacial ST_GeomFromText.
+            # El punto va en orden longitud-latitud, que es como lo entrega el
+            # GPS. MySQL con SRID 4326 asume el orden contrario, por eso el
+            # 'axis-order=long-lat'. Sin esa opción rechaza la longitud de CDMX
+            # (-99) por estar fuera del rango válido de latitudes.
             insert_query = """
                 INSERT INTO emergencies (id, patient_name, patient_identifier, triage_score, severity, required_resource_id, origin_location, status)
-                VALUES (%s, %s, %s, %s, %s, %s, ST_GeomFromText(%s, 4326), 'evaluating')
+                VALUES (%s, %s, %s, %s, %s, %s, ST_GeomFromText(%s, 4326, 'axis-order=long-lat'), 'evaluating')
             """
             point_wkt = f"POINT({payload.longitude} {payload.latitude})"
             cursor.execute(insert_query, (emergency_id, payload.patient_name, payload.patient_identifier, triage_score, severity, resource_id, point_wkt))
