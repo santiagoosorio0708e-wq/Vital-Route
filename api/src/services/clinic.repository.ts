@@ -58,6 +58,9 @@ class ClinicRepository {
         user: env.db.user,
         password: env.db.password,
         database: env.db.database,
+        // Sin charset explicito los nombres de hospital con acentos llegan
+        // rotos al centro de mando.
+        charset: 'utf8mb4',
         waitForConnections: true,
         connectionLimit: 10,
       });

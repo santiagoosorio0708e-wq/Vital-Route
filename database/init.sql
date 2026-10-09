@@ -1,6 +1,11 @@
 -- database/init.sql
 -- Motor MySQL 8.0+ Requerido para Funciones Geoespaciales y JSON
 
+-- El cliente que carga este script puede venir configurado en latin1. Sin esta
+-- linea, los acentos se guardan dobles ("Mexico" queda como "MA(c)xico") y el
+-- dato queda corrupto en la tabla, no solo mal mostrado.
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS vitalroute
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;

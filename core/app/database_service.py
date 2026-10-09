@@ -20,8 +20,11 @@ class DatabaseService:
         self.port = os.getenv("DB_PORT", "3306")
 
     def get_connection(self):
+        # charset explicito: sin el, los nombres con acentos llegan mal al
+        # gateway y de ahi al resumen que lee el operador.
         return mysql.connector.connect(
-            host=self.host, port=self.port, user=self.user, password=self.password, database=self.database
+            host=self.host, port=self.port, user=self.user, password=self.password,
+            database=self.database, charset="utf8mb4", collation="utf8mb4_unicode_ci"
         )
 
     def route_emergency(self, payload, triage_score, severity, resource_id):
