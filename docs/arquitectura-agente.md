@@ -120,18 +120,20 @@ la herramienta y otra para que redacte el resumen.
 
 ## Qué está probado y qué no
 
-**Probado con Grok real:** el ciclo completo contra el gateway, con tres
-reportes distintos. El formato de herramientas de la API de xAI resultó ser el
-correcto, así que no hubo que tocar el cliente. En el caso de datos
-incompletos el modelo se negó a despachar y pidió los signos vitales que
-faltaban, en lugar de rellenar los campos. Los números están en
+**Probado con Grok real y el sistema completo:** el ciclo contra el gateway,
+el motor de triaje en Python y MySQL, con tres reportes distintos. El formato
+de herramientas de la API de xAI resultó ser el correcto, así que no hubo que
+tocar el cliente. En el caso de datos incompletos el modelo se negó a
+despachar y pidió los signos vitales que faltaban, en lugar de rellenar los
+campos. Los números y las capturas están en
 [`reporte-tecnico-s1.md`](reporte-tecnico-s1.md).
 
-**Probado con el modelo falso:** lo mismo, más el camino de error cuando el
-gateway no responde.
+**Probado con el modelo falso:** lo mismo en modo simulacro, más el camino de
+error cuando el gateway no responde. En el simulacro el puntaje de triaje no
+se calcula.
 
-**Sin probar todavía:** el flujo con el core de Python y MySQL levantados. Lo
-anterior corrió en modo simulacro, donde el puntaje de triaje no se calcula.
+**Sin probar todavía:** el triaje no considera edad ni mecanismo de la lesión,
+y la disponibilidad de camas es simulada. Quedan para sprints posteriores.
 
 **Límite del modelo falso:** no entiende lenguaje, saca los números del texto
 con expresiones regulares. Existe para comprobar la mecánica, no la

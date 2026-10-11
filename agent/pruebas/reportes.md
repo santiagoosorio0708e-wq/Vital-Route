@@ -29,19 +29,17 @@ tiempo real (`[despacho]` y `[alerta]`).
 
 ## Caso 2 - Gravedad media
 
-Signos vitales fuera de rango pero sin peligro inmediato. Aqui es donde se
-destapa el error del recurso 4 si todavia no lo han corregido en
-`core/app/triage_engine.py`.
+Signos vitales casi normales, sin peligro inmediato. Este caso fue el que
+destapo el error del recurso 4, ya corregido en `database/init.sql`.
 
 ```
 Hombre de 60 anos, paciente Ramon Cortes, se cayo en la escalera del metro Pino Suarez y le duele la cadera. Esta consciente y habla normal. Pulso 96, presion 128, oxigeno 95. lat 19.4260 lon -99.1330
 ```
 
-Lo que se mira: gravedad `medium`. Ojo, en modo simulacro la gravedad sale
-fija en `high` y el bug no se destapa; hace falta el motor de Python
-conectado. Con el bug sin corregir, esto devuelve un error 500 por llave
-foranea, y el agente lo reporta en lugar de romperse. Esa reaccion tambien
-vale para el video.
+Lo que se mira: una ambulancia asignada y una gravedad baja o media. En modo
+simulacro la gravedad sale fija en `high`; hace falta el motor de Python
+conectado. Con el motor real sale `low`, puntaje 0: el triaje solo mira pulso,
+presion y oxigeno, y no la edad ni el mecanismo de la lesion.
 
 ---
 
@@ -66,22 +64,21 @@ despacho a "Paciente sin identificar".
 
 ## Resultados con Grok real
 
-Corrida del 9 de octubre de 2026, modelo `grok-4.6`, gateway en modo
-simulacro.
+Corrida del 11 de octubre de 2026, modelo `grok-4.6`, sistema completo (core
+de Python y MySQL).
 
 | Caso | Pasos | Entrada | Salida | Costo USD | Resultado |
 | --- | --- | --- | --- | --- | --- |
-| 1 Critico | 2 | 2750 | 370 | 0.0074 | AMB-04, Hospital General, 1.31 km |
-| 2 Medio | 2 | 2778 | 539 | 0.0078 | AMB-05, Hospital General, 2.45 km |
-| 3 Incompleto | 1 | 1289 | 734 | 0.0048 | No despacho, pidio los signos que faltaban |
+| 1 Critico | 2 | 2747 | 421 | 0.007476 | critical, puntaje 20, AMB-01, Hospital General, 1.31 km |
+| 2 Medio | 2 | 2793 | 438 | 0.007625 | low, puntaje 0, AMB-05, Hospital General, 2.45 km |
+| 3 Incompleto | 1 | 1289 | 569 | 0.004385 | No despacho, pidio los signos que faltaban |
 
-Suma: USD 0.0200. El panel del reto paso de 0.02 a 0.04 dolares gastados con
-estas tres tareas, asi que la cuenta cuadra al centavo.
+Promedio: USD 0.0065 por tarea.
 
 La salida incluye los tokens de razonamiento, que se cobran pero no aparecen
 en `completion_tokens`. Se notan porque `total_tokens` es mayor que la suma de
-entrada y salida. En el caso 3 el razonamiento fue casi toda la salida: 708 de
-734, porque el modelo gasto el esfuerzo en decidir que no tenia con que
+entrada y salida. En el caso 3 el razonamiento fue casi toda la salida: 546 de
+569, porque el modelo gasto el esfuerzo en decidir que no tenia con que
 despachar.
 
 El agente imprime estos valores al final de cada corrida, en el bloque
