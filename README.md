@@ -30,6 +30,7 @@
     <li><a href="#instalación">Instalación</a></li>
     <li><a href="#uso-y-características">Uso y Características</a></li>
     <li><a href="#capa-en-tiempo-real">Capa en Tiempo Real</a></li>
+    <li><a href="#el-agente">El Agente</a></li>
     <li><a href="#pruebas">Pruebas</a></li>
     <li><a href="#hoja-de-ruta">Hoja de Ruta</a></li>
     <li><a href="#contacto">Contacto</a></li>
@@ -86,8 +87,19 @@ VitalRoute/
 │   │   ├── lib/           # Tipos del contrato con el gateway
 │   │   └── App.tsx        # Composición del tablero
 │   └── package.json
+├── agent/                 # 🤖 [Dev B] Agente autónomo (framework propio)
+│   ├── src/
+│   │   ├── core/          # El ciclo del agente y su prompt
+│   │   ├── llm/           # Cliente de Grok y modelo falso para ensayos
+│   │   ├── tools/         # Catálogo de herramientas
+│   │   └── index.ts       # Entrada por línea de comandos
+│   ├── pruebas/           # Casos de prueba del sprint y script para correrlos
+│   └── package.json
 └── docs/                  # 📐 Documentación de arquitectura
-    └── arquitectura-tiempo-real.md
+    ├── arquitectura-tiempo-real.md
+    ├── arquitectura-agente.md
+    ├── reporte-tecnico-s1.md
+    └── guion-video-s1.md
 ```
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
@@ -188,6 +200,42 @@ El centro de mando lee la URL del gateway de `VITE_GATEWAY_URL`. Copia
 Para ensayar el tablero sin el core de Python, pon `ENABLE_DISPATCH_DRILL=true`
 en el `.env` y usa `POST /api/v1/dispatch/drill`. El simulacro no calcula
 triaje y marca la decisión con `source: "drill"`.
+
+<p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
+
+## 🤖 El Agente
+
+El agente recibe el reporte de una emergencia escrito en lenguaje normal por un
+operador telefónico y consigue que salga una ambulancia hacia el hospital
+adecuado. Razona con Grok a través del gateway del reto y actúa llamando a las
+herramientas del sistema.
+
+El ciclo está escrito a mano, sin librerías de agentes: en cada vuelta le pasa
+la conversación al modelo, ejecuta la herramienta que pida y le devuelve el
+resultado, hasta que el modelo responde con texto. Cabe en un archivo y se
+puede explicar de principio a fin.
+
+```sh
+cd agent && npm install
+npm run dev -- "Paciente Ana Reyes, atropellada en Chapultepec. Pulso 138, presion 78, oxigeno 81. lat 19.4195 lon -99.1620"
+```
+
+La llave del reto se lee de `AGENT_API_KEY` en el `.env` y nunca se escribe en
+el código. Para ensayar el ciclo sin gastar crédito está `AGENT_FAKE_LLM=true`,
+que usa un modelo falso.
+
+Al final de cada tarea el agente reporta los tokens y el costo en dólares. El
+precio por millón de tokens sale del panel del reto y se configura en
+`AGENT_PRICE_IN_USD` y `AGENT_PRICE_OUT_USD`.
+
+Los tres casos de prueba del sprint (crítico, gravedad media y datos
+incompletos) están en [`agent/pruebas/reportes.md`](agent/pruebas/reportes.md)
+y se corren en fila con `./pruebas/correr.sh`.
+
+El detalle (el ciclo, las piezas, la seguridad y qué está probado y qué no)
+está en [`docs/arquitectura-agente.md`](docs/arquitectura-agente.md). El
+reporte de la entrega, con decisiones, resultados y costo, está en
+[`docs/reporte-tecnico-s1.md`](docs/reporte-tecnico-s1.md).
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 

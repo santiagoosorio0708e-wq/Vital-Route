@@ -20,8 +20,11 @@ class DatabaseService:
         self.port = os.getenv("DB_PORT", "3306")
 
     def get_connection(self):
+        # charset explicito: sin el, los nombres con acentos llegan mal al
+        # gateway y de ahi al resumen que lee el operador.
         return mysql.connector.connect(
-            host=self.host, port=self.port, user=self.user, password=self.password, database=self.database
+            host=self.host, port=self.port, user=self.user, password=self.password,
+            database=self.database, charset="utf8mb4", collation="utf8mb4_unicode_ci"
         )
 
     def route_emergency(self, payload, triage_score, severity, resource_id):
@@ -36,10 +39,14 @@ class DatabaseService:
             # Todo el enrutamiento es una gran transacción ACID
             conn.autocommit = False
             
-            # 1. Registrar entrada usando función geoespacial ST_GeomFromText
+            # 1. Registrar entrada usando función geoespacial ST_GeomFromText.
+            # El punto va en orden longitud-latitud, que es como lo entrega el
+            # GPS. MySQL con SRID 4326 asume el orden contrario, por eso el
+            # 'axis-order=long-lat'. Sin esa opción rechaza la longitud de CDMX
+            # (-99) por estar fuera del rango válido de latitudes.
             insert_query = """
                 INSERT INTO emergencies (id, patient_name, patient_identifier, triage_score, severity, required_resource_id, origin_location, status)
-                VALUES (%s, %s, %s, %s, %s, %s, ST_GeomFromText(%s, 4326), 'evaluating')
+                VALUES (%s, %s, %s, %s, %s, %s, ST_GeomFromText(%s, 4326, 'axis-order=long-lat'), 'evaluating')
             """
             point_wkt = f"POINT({payload.longitude} {payload.latitude})"
             cursor.execute(insert_query, (emergency_id, payload.patient_name, payload.patient_identifier, triage_score, severity, resource_id, point_wkt))
