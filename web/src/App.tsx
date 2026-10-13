@@ -1,122 +1,88 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCommandCenter } from './hooks/useCommandCenter';
+import { TacticalMap } from './components/TacticalMap';
+import { DispatchForm } from './components/DispatchForm';
+import { TraumaAlerts } from './components/TraumaAlerts';
+import { InventoryBoard } from './components/InventoryBoard';
+import { EventLog } from './components/EventLog';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const {
+    gatewayUrl,
+    connected,
+    clinics,
+    fleet,
+    inventories,
+    alerts,
+    dispatches,
+    log,
+    pushLog,
+  } = useCommandCenter();
+
+  const onRoute = fleet.filter((unit) => unit.status === 'dispatched').length;
+  const available = fleet.filter((unit) => unit.status === 'available').length;
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="console">
+      <header className="console__bar">
+        <div className="brand">
+          <span className="brand__mark" aria-hidden="true" />
+          <h1 className="brand__name">VitalRoute</h1>
+          <span className="brand__city">Centro de mando · Ciudad de México</span>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+        <dl className="readout">
+          <div>
+            <dt>En ruta</dt>
+            <dd className="data">{onRoute}</dd>
+          </div>
+          <div>
+            <dt>Disponibles</dt>
+            <dd className="data">{available}</dd>
+          </div>
+          <div>
+            <dt>Hospitales</dt>
+            <dd className="data">{clinics.length}</dd>
+          </div>
+        </dl>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <p className={`link link--${connected ? 'up' : 'down'}`}>
+          <span className="link__dot" aria-hidden="true" />
+          {connected ? 'Enlace en vivo' : 'Sin enlace'}
+        </p>
+      </header>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <main className="console__grid">
+        <aside className="rail">
+          <section className="panel">
+            <h2 className="panel__title">Reportar emergencia</h2>
+            <DispatchForm
+              gatewayUrl={gatewayUrl}
+              onError={(message) => pushLog('sistema', message)}
+            />
+          </section>
+
+          <section className="panel panel--grow">
+            <h2 className="panel__title">Bitácora del turno</h2>
+            <EventLog entries={log} />
+          </section>
+        </aside>
+
+        <section className="stage">
+          <TacticalMap clinics={clinics} fleet={fleet} dispatches={dispatches} />
+        </section>
+
+        <aside className="rail">
+          <section className="panel">
+            <h2 className="panel__title">Trauma entrante</h2>
+            <TraumaAlerts alerts={alerts} />
+          </section>
+
+          <section className="panel panel--grow">
+            <h2 className="panel__title">Inventario hospitalario</h2>
+            <InventoryBoard inventories={inventories} />
+          </section>
+        </aside>
+      </main>
+    </div>
+  );
 }
-
-export default App
