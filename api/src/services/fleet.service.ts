@@ -20,11 +20,20 @@ const INITIAL_FLEET: Array<Pick<Ambulance, 'id' | 'plate'> & Coordinates> = [
 /** Velocidad de traslado simulada, con sirena y en tráfico de CDMX. */
 const AVERAGE_SPEED_KMH = 45;
 
-/** A menos de esta distancia se considera que la unidad llegó al hospital. */
+/** A menos de esta distancia se considera que la unidad llegó a su punto. */
 const ARRIVAL_THRESHOLD_KM = 0.15;
+
+/**
+ * Cuánto se queda la unidad en el hospital antes de volver a estar disponible.
+ * En la vida real es el tiempo de entrega del paciente y limpieza; aquí sirve
+ * para que la flota no se agote después de unos cuantos despachos.
+ */
+const TURNAROUND_MS = 15_000;
 
 class FleetService {
   private readonly ambulances = new Map<string, Ambulance>();
+  /** Momento en que cada unidad llegó al hospital, para liberarla después. */
+  private readonly arrivedAt = new Map<string, number>();
   private timer: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -33,6 +42,8 @@ class FleetService {
       this.ambulances.set(unit.id, {
         ...unit,
         status: 'available',
+        leg: null,
+        pickup: null,
         assignedEmergencyId: null,
         destination: null,
         destinationClinicId: null,
@@ -49,8 +60,16 @@ class FleetService {
    * Elige la unidad disponible más cercana al lugar de la emergencia.
    * Si todas están ocupadas, reasigna la más cercana de la flota completa: en
    * una urgencia es preferible redirigir una unidad a no enviar ninguna.
+   *
+   * La unidad arranca en el tramo hacia el paciente. El hospital queda
+   * guardado como destino final, pero no se va para allá hasta recogerlo.
    */
-  assignNearest(origin: Coordinates, emergencyId: string, destination: Coordinates, clinicId: number): Ambulance {
+  assignNearest(
+    origin: Coordinates,
+    emergencyId: string,
+    destination: Coordinates,
+    clinicId: number
+  ): Ambulance {
     const candidates = this.list().filter((a) => a.status === 'available');
     const pool = candidates.length > 0 ? candidates : this.list();
 
@@ -61,12 +80,15 @@ class FleetService {
     const assigned: Ambulance = {
       ...chosen,
       status: 'dispatched',
+      leg: 'to_patient',
+      pickup: { ...origin },
       assignedEmergencyId: emergencyId,
-      destination: { ...destination },
+      destination: { latitude: destination.latitude, longitude: destination.longitude },
       destinationClinicId: clinicId,
       updatedAt: new Date().toISOString(),
     };
 
+    this.arrivedAt.delete(assigned.id);
     this.ambulances.set(assigned.id, assigned);
     return assigned;
   }
@@ -82,18 +104,39 @@ class FleetService {
 
     this.timer = setInterval(() => {
       for (const ambulance of this.ambulances.values()) {
-        if (ambulance.status !== 'dispatched' || !ambulance.destination) continue;
+        if (ambulance.status === 'arrived') {
+          this.releaseIfRested(ambulance);
+          continue;
+        }
 
-        const next = advanceTowards(ambulance, ambulance.destination, stepKm);
-        const arrived = distanceKm(next, ambulance.destination) <= ARRIVAL_THRESHOLD_KM;
+        if (ambulance.status !== 'dispatched') continue;
 
-        const updated: Ambulance = {
+        // Hacia dónde va ahora mismo: al paciente o, ya con él a bordo, al hospital.
+        const target =
+          ambulance.leg === 'to_patient' ? ambulance.pickup : ambulance.destination;
+        if (!target) continue;
+
+        const next = advanceTowards(ambulance, target, stepKm);
+        const reached = distanceKm(next, target) <= ARRIVAL_THRESHOLD_KM;
+
+        let updated: Ambulance = {
           ...ambulance,
           latitude: next.latitude,
           longitude: next.longitude,
-          status: arrived ? 'arrived' : 'dispatched',
           updatedAt: new Date().toISOString(),
         };
+
+        if (reached && ambulance.leg === 'to_patient') {
+          // Paciente a bordo: empieza el traslado.
+          updated = { ...updated, leg: 'to_hospital' };
+          console.log(
+            `[flota] ${updated.id} recogio al paciente, traslado al hospital en curso`
+          );
+        } else if (reached && ambulance.leg === 'to_hospital') {
+          updated = { ...updated, status: 'arrived', leg: null };
+          this.arrivedAt.set(updated.id, Date.now());
+          console.log(`[flota] ${updated.id} entrego al paciente en el hospital`);
+        }
 
         this.ambulances.set(updated.id, updated);
         eventBus.publish(Topics.AMBULANCE_MOVED, updated);
@@ -102,6 +145,28 @@ class FleetService {
 
     // No impedir que el proceso termine si solo queda este intervalo vivo.
     this.timer.unref?.();
+  }
+
+  /** Devuelve al servicio una unidad que ya descansó lo suficiente. */
+  private releaseIfRested(ambulance: Ambulance): void {
+    const since = this.arrivedAt.get(ambulance.id);
+    if (since === undefined || Date.now() - since < TURNAROUND_MS) return;
+
+    const free: Ambulance = {
+      ...ambulance,
+      status: 'available',
+      leg: null,
+      pickup: null,
+      assignedEmergencyId: null,
+      destination: null,
+      destinationClinicId: null,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.arrivedAt.delete(ambulance.id);
+    this.ambulances.set(free.id, free);
+    eventBus.publish(Topics.AMBULANCE_MOVED, free);
+    console.log(`[flota] ${free.id} disponible de nuevo`);
   }
 
   stopSimulation(): void {
