@@ -60,6 +60,13 @@ export interface Ambulance extends Coordinates {
   id: string;
   plate: string;
   status: 'available' | 'dispatched' | 'arrived';
+  /**
+   * Tramo del viaje. Una ambulancia no vuela al hospital: primero recoge al
+   * paciente y despues lo traslada.
+   */
+  leg: 'to_patient' | 'to_hospital' | null;
+  /** Donde esta el paciente. Null mientras la unidad esta libre. */
+  pickup: Coordinates | null;
   assignedEmergencyId: string | null;
   destination: Coordinates | null;
   destinationClinicId: number | null;
