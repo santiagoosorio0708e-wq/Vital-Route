@@ -31,10 +31,19 @@ export interface Ambulance extends Coordinates {
   id: string;
   plate: string;
   status: 'available' | 'dispatched' | 'arrived';
+  /** Tramo del viaje: primero va por el paciente, despues lo traslada. */
+  leg: 'to_patient' | 'to_hospital' | null;
+  /** Donde esta el paciente. Null mientras la unidad esta libre. */
+  pickup: Coordinates | null;
   assignedEmergencyId: string | null;
   destination: Coordinates | null;
   destinationClinicId: number | null;
   updatedAt: string;
+}
+
+/** Un lugar elegido por el operador, con el nombre que se le muestra. */
+export interface PickedPlace extends Coordinates {
+  label: string;
 }
 
 export interface DispatchDecision {

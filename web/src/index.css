@@ -423,42 +423,282 @@ body {
 
 /* ---------- Marcadores del mapa ---------- */
 
-.pin {
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  font-family: var(--mono);
+/* ---------- Captura de la emergencia ---------- */
+
+.field__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
-  font-weight: 500;
+  color: var(--text-dim);
 }
 
-.pin--hospital {
-  width: 28px;
-  height: 28px;
-  background: #12303a;
-  border: 1.5px solid var(--signal);
-  color: var(--signal);
+.mic {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 9px;
 }
 
-.pin--saturated {
+.mic:hover {
+  border-color: var(--signal);
+  color: var(--text);
+}
+
+.mic__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.mic--on {
   border-color: var(--critical);
   color: var(--critical);
 }
 
-.pin--unit {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--ink);
-  background: var(--text-dim);
+.mic--on .mic__dot {
+  animation: latido-mic 1s ease-in-out infinite;
 }
 
-.pin--dispatched {
-  background: var(--critical);
-  box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.28);
+@keyframes latido-mic {
+  50% {
+    opacity: 0.25;
+  }
 }
 
-.pin--arrived {
-  background: var(--low);
+/* Lugar ya elegido: se muestra en palabras, nunca en coordenadas. */
+.place {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--signal);
+  border-radius: 3px;
+  padding: 7px 9px;
+}
+
+.place__pin {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.place__name {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.place__clear {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+.place__clear:hover {
+  color: var(--text);
+}
+
+.suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.suggestions button {
+  display: block;
+  width: 100%;
+  background: var(--ink);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.suggestions li:last-child button {
+  border-bottom: none;
+}
+
+.suggestions button:hover {
+  background: var(--panel-raised);
+}
+
+.shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
+.chip:hover {
+  border-color: var(--signal);
+}
+
+.hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ---------- Iconos del mapa ---------- */
+
+.poi {
+  display: grid;
+  place-items: center;
+}
+
+.poi svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.poi--hospital {
+  width: 30px;
+  height: 30px;
+  color: var(--signal);
+}
+
+.poi--saturated {
+  color: var(--critical);
+}
+
+.poi--patient {
+  width: 26px;
+  height: 26px;
+  color: var(--high);
+}
+
+/* El paciente que todavia espera parpadea, para no perderlo de vista. */
+.poi--waiting {
+  color: var(--critical);
+  animation: espera 1.4s ease-in-out infinite;
+}
+
+@keyframes espera {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.unit {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 26px;
+  color: var(--text-dim);
+}
+
+.unit__van {
+  width: 38px;
+  height: 22px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+
+/* Disponible: gris, sin aspavientos. */
+.unit--libre {
+  color: #8d9aa6;
+}
+
+.unit--al-paciente {
+  color: var(--high);
+}
+
+.unit--al-hospital {
+  color: var(--critical);
+}
+
+.unit--llego {
+  color: var(--low);
+}
+
+/* Halo que late debajo de las unidades en movimiento. */
+.unit__halo {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.22;
+  animation: latido 1.6s ease-out infinite;
+}
+
+@keyframes latido {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Torreta encendida: alterna rojo y azul como una sirena de verdad. */
+.unit__siren {
+  position: absolute;
+  top: 1px;
+  left: 11px;
+  width: 7px;
+  height: 3px;
+  border-radius: 2px;
+  animation: sirena 0.55s steps(1) infinite;
+}
+
+@keyframes sirena {
+  0% {
+    background: #ff4d4f;
+    box-shadow: 0 0 6px 1px #ff4d4f;
+  }
+  50% {
+    background: #4c8df6;
+    box-shadow: 0 0 6px 1px #4c8df6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unit__halo,
+  .unit__siren,
+  .poi--waiting {
+    animation: none;
+  }
 }
 
 /* Popups de Leaflet en el tema del tablero */
@@ -477,6 +717,11 @@ body {
 
 .leaflet-container a.leaflet-popup-close-button {
   color: var(--text-dim);
+}
+
+/* El mapa de OpenStreetMap es claro; se invierte para que combine con el tablero oscuro. */
+.map-base {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.7);
 }
 
 .leaflet-control-attribution {
