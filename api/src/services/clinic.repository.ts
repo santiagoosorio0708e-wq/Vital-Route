@@ -80,11 +80,16 @@ class ClinicRepository {
 
   async findAll(): Promise<Clinic[]> {
     try {
+      // Ojo con ST_X y ST_Y: en el sistema 4326 el primer eje es la latitud,
+      // asi que ST_X devuelve latitud y ST_Y longitud, al reves de lo que uno
+      // espera. Leerlos cruzados ponia los hospitales fuera de Mexico, en medio
+      // del oceano. ST_Latitude y ST_Longitude dicen lo que traen y no se
+      // prestan a confusion.
       const [rows] = await this.getPool().query<mysql.RowDataPacket[]>(
         `SELECT id,
                 name,
-                ST_Y(location) AS latitude,
-                ST_X(location) AS longitude,
+                ST_Latitude(location) AS latitude,
+                ST_Longitude(location) AS longitude,
                 address,
                 capacity_level,
                 status
