@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCommandCenter } from './hooks/useCommandCenter';
 import { TacticalMap } from './components/TacticalMap';
 import { DispatchForm } from './components/DispatchForm';
+import { AgentDecision } from './components/AgentDecision';
 import { TraumaAlerts } from './components/TraumaAlerts';
 import { InventoryBoard } from './components/InventoryBoard';
 import { EventLog } from './components/EventLog';
@@ -16,8 +17,16 @@ export default function App() {
    */
   const [lugar, setLugar] = useState<PickedPlace | null>(null);
 
-  /** Un clic en el mapa fija el punto y después le pone nombre. */
+  /**
+   * Un clic suelto en el mapa no marca nada: hay que pedirlo primero desde el
+   * formulario. Así el operador puede mover y acercar el mapa con libertad sin
+   * colocar una emergencia sin querer.
+   */
+  const [modoMarcado, setModoMarcado] = useState(false);
+
+  /** Fija el punto y después le pone nombre, sin hacer esperar a la pantalla. */
   async function marcarEnMapa(punto: Coordinates) {
+    setModoMarcado(false);
     setLugar({ ...punto, label: 'Ubicando...' });
     setLugar({ ...punto, label: await describirPunto(punto) });
   }
@@ -75,6 +84,8 @@ export default function App() {
               gatewayUrl={gatewayUrl}
               lugar={lugar}
               onLugarChange={setLugar}
+              modoMarcado={modoMarcado}
+              onModoMarcado={setModoMarcado}
               onError={(message) => pushLog('sistema', message)}
             />
           </section>
@@ -91,11 +102,18 @@ export default function App() {
             fleet={fleet}
             dispatches={dispatches}
             lugar={lugar}
+            modoMarcado={modoMarcado}
             onPick={marcarEnMapa}
+            onError={(message) => pushLog('sistema', message)}
           />
         </section>
 
         <aside className="rail">
+          <section className="panel">
+            <h2 className="panel__title">Decisión del agente</h2>
+            <AgentDecision decision={dispatches[0] ?? null} />
+          </section>
+
           <section className="panel">
             <h2 className="panel__title">Trauma entrante</h2>
             <TraumaAlerts alerts={alerts} />

@@ -733,6 +733,256 @@ body {
   color: var(--text-dim) !important;
 }
 
+/* ---------- Controles encima del mapa ---------- */
+
+/* Texto que solo leen los lectores de pantalla. */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * Los controles van sobre el mapa, no al lado. El fondo translúcido con
+ * desenfoque deja ver que hay mapa debajo, como en cualquier app de mapas.
+ */
+.layers,
+.mapctl {
+  position: absolute;
+  z-index: 1000;
+  background: rgba(17, 26, 34, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+/* Capas arriba a la derecha. */
+.layers {
+  top: 12px;
+  right: 12px;
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+}
+
+.layers__btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.layers__btn:hover {
+  color: var(--text);
+}
+
+.layers__btn--on {
+  background: var(--panel-raised);
+  color: var(--text);
+}
+
+/* Zoom y encuadre abajo a la derecha, por encima de la atribución. */
+.mapctl {
+  right: 12px;
+  bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  width: 38px;
+}
+
+.mapctl__btn {
+  display: grid;
+  place-items: center;
+  height: 38px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  cursor: pointer;
+  padding: 0;
+  transition: background 140ms ease;
+}
+
+.mapctl__btn:first-child {
+  border-top: none;
+}
+
+/* Separa el grupo de zoom del grupo de encuadre. */
+.mapctl__btn--apart {
+  border-top-width: 5px;
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.mapctl__btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mapctl__btn:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mapctl__btn:focus-visible,
+.layers__btn:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
+}
+
+.mapctl__btn svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mapctl__btn--busy {
+  color: var(--signal);
+}
+
+/* Mientras se espera el punto, el cursor avisa que el mapa está en otro modo. */
+.map--marcando,
+.map--marcando .leaflet-grab,
+.map--marcando .leaflet-interactive {
+  cursor: crosshair;
+}
+
+.popup__hint {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+/* ---------- Llamadas de ejemplo ---------- */
+
+.cases {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.chip--on {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: #06231f;
+  font-weight: 600;
+}
+
+/* ---------- Decisión del agente ---------- */
+
+.decision {
+  background: var(--panel-raised);
+  border-left: 3px solid var(--medium);
+  border-radius: 0 3px 3px 0;
+  padding: 11px 13px;
+}
+
+.decision--critical {
+  border-left-color: var(--critical);
+}
+.decision--high {
+  border-left-color: var(--high);
+}
+.decision--medium {
+  border-left-color: var(--medium);
+}
+.decision--low {
+  border-left-color: var(--low);
+}
+
+.decision__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.decision__severity {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.decision--critical .decision__severity {
+  color: var(--critical);
+}
+.decision--high .decision__severity {
+  color: var(--high);
+}
+.decision--medium .decision__severity {
+  color: var(--medium);
+}
+.decision--low .decision__severity {
+  color: var(--low);
+}
+
+.decision__score {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.decision__patient {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.decision__symptoms {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.decision__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 11px 0 0;
+}
+
+.decision__facts dt {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.decision__facts dd {
+  margin: 1px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* El motivo que dio el motor, citado tal cual. */
+.decision__why {
+  margin: 11px 0 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--line);
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.decision__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
 /* ---------- Pantallas angostas ---------- */
 
 @media (max-width: 1100px) {

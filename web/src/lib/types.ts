@@ -58,6 +58,11 @@ export interface DispatchDecision {
   ambulance: Ambulance;
   decidedAt: string;
   source: 'agent' | 'drill';
+  /**
+   * El motivo que dio el motor de decision, en sus palabras. Es opcional
+   * porque un gateway anterior a este cambio no lo manda.
+   */
+  message?: string;
 }
 
 export interface TraumaAlert {

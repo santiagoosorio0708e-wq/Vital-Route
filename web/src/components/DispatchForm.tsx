@@ -8,6 +8,9 @@ interface Props {
   /** Lugar de la emergencia. Lo comparte con el mapa, que tambien lo puede fijar. */
   lugar: PickedPlace | null;
   onLugarChange: (lugar: PickedPlace | null) => void;
+  /** Mientras esta encendido, el siguiente clic en el mapa fija el lugar. */
+  modoMarcado: boolean;
+  onModoMarcado: (activo: boolean) => void;
   onError: (message: string) => void;
 }
 
@@ -23,6 +26,56 @@ const SIGNOS_INICIALES = {
 const PAUSA_BUSQUEDA = 500;
 
 /**
+ * Tres llamadas de ejemplo, listas para cargar con un clic.
+ *
+ * Sirven para ensayar y para mostrar el sistema sin teclear nada: quien lo
+ * ve puede comparar como reacciona el motor de decision ante un paciente
+ * grave y ante uno que puede esperar.
+ */
+const CASOS = [
+  {
+    etiqueta: 'Crítico',
+    patient_name: 'Ana Reyes',
+    symptoms:
+      'Atropellada en Paseo de la Reforma, no responde y respira con dificultad',
+    heart_rate: 138,
+    systolic_bp: 78,
+    o2_saturation: 81,
+    lugar: {
+      latitude: 19.4270,
+      longitude: -99.1677,
+      label: 'Paseo de la Reforma, Juárez',
+    },
+  },
+  {
+    etiqueta: 'Moderado',
+    patient_name: 'Miguel Tapia',
+    symptoms: 'Dolor en el pecho desde hace una hora, sudoración fría, consciente',
+    heart_rate: 112,
+    systolic_bp: 96,
+    o2_saturation: 92,
+    lugar: {
+      latitude: 19.4194,
+      longitude: -99.1420,
+      label: 'Avenida Cuauhtémoc, Doctores',
+    },
+  },
+  {
+    etiqueta: 'Leve',
+    patient_name: 'Lucía Ferrer',
+    symptoms: 'Caída en bicicleta, golpe en el brazo derecho, camina sin ayuda',
+    heart_rate: 88,
+    systolic_bp: 118,
+    o2_saturation: 98,
+    lugar: {
+      latitude: 19.4119,
+      longitude: -99.1710,
+      label: 'Avenida Insurgentes Sur, Roma Sur',
+    },
+  },
+] as const;
+
+/**
  * Captura de una emergencia.
  *
  * El operador nunca escribe coordenadas: dice o escribe una direccion, toma la
@@ -32,7 +85,14 @@ const PAUSA_BUSQUEDA = 500;
  * Envia el reporte por REST al gateway; la respuesta visible no llega por aqui
  * sino por WebSocket, igual que para el resto de pantallas conectadas.
  */
-export function DispatchForm({ gatewayUrl, lugar, onLugarChange, onError }: Props) {
+export function DispatchForm({
+  gatewayUrl,
+  lugar,
+  onLugarChange,
+  modoMarcado,
+  onModoMarcado,
+  onError,
+}: Props) {
   const [form, setForm] = useState(SIGNOS_INICIALES);
   const [enviando, setEnviando] = useState(false);
 
@@ -83,6 +143,22 @@ export function DispatchForm({ gatewayUrl, lugar, onLugarChange, onError }: Prop
 
   function elegir(elegido: PickedPlace) {
     onLugarChange(elegido);
+    onModoMarcado(false);
+    setConsulta('');
+    setSugerencias([]);
+  }
+
+  /** Carga una llamada de ejemplo completa, lugar incluido. */
+  function cargarCaso(caso: (typeof CASOS)[number]) {
+    setForm({
+      patient_name: caso.patient_name,
+      symptoms: caso.symptoms,
+      heart_rate: caso.heart_rate,
+      systolic_bp: caso.systolic_bp,
+      o2_saturation: caso.o2_saturation,
+    });
+    onLugarChange({ ...caso.lugar });
+    onModoMarcado(false);
     setConsulta('');
     setSugerencias([]);
   }
@@ -142,6 +218,22 @@ export function DispatchForm({ gatewayUrl, lugar, onLugarChange, onError }: Prop
 
   return (
     <div className="stack">
+      <div className="cases">
+        <span className="hint">Llamadas de ejemplo</span>
+        <div className="shortcuts">
+          {CASOS.map((caso) => (
+            <button
+              key={caso.etiqueta}
+              type="button"
+              className="chip"
+              onClick={() => cargarCaso(caso)}
+            >
+              {caso.etiqueta}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <label className="field">
         <span>Paciente</span>
         <input
@@ -184,7 +276,10 @@ export function DispatchForm({ gatewayUrl, lugar, onLugarChange, onError }: Prop
             <button
               type="button"
               className="place__clear"
-              onClick={() => onLugarChange(null)}
+              onClick={() => {
+                onLugarChange(null);
+                onModoMarcado(false);
+              }}
               title="Elegir otro lugar"
             >
               cambiar
@@ -216,8 +311,21 @@ export function DispatchForm({ gatewayUrl, lugar, onLugarChange, onError }: Prop
               <button type="button" className="chip" onClick={usarMiUbicacion}>
                 Usar mi ubicación
               </button>
-              <span className="hint">o haz clic en el mapa</span>
+              <button
+                type="button"
+                className={`chip${modoMarcado ? ' chip--on' : ''}`}
+                onClick={() => onModoMarcado(!modoMarcado)}
+              >
+                {modoMarcado ? 'Haz clic en el mapa' : 'Marcar en el mapa'}
+              </button>
             </div>
+
+            {modoMarcado && (
+              <p className="hint">
+                El mapa está esperando el punto. Después lo puedes arrastrar para
+                ajustarlo.
+              </p>
+            )}
           </>
         )}
       </div>
