@@ -56,6 +56,7 @@ class DispatchService {
       ambulance,
       decidedAt: new Date().toISOString(),
       source: 'agent',
+      message: triage.message,
     };
 
     // Una sola publicación; los tres suscriptores reaccionan en paralelo.
@@ -99,6 +100,7 @@ class DispatchService {
       ambulance,
       decidedAt: new Date().toISOString(),
       source: 'drill',
+      message: `Simulacro: se eligió ${clinic.name} por cercanía, sin consultar el motor de triaje.`,
     };
 
     eventBus.publish(Topics.DISPATCH_DECIDED, decision);

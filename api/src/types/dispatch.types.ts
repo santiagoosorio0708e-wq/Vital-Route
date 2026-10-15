@@ -94,4 +94,10 @@ export interface DispatchDecision {
   ambulance: Ambulance;
   decidedAt: string;
   source: 'agent' | 'drill';
+  /**
+   * El motivo que dio el motor de decisión, tal como lo escribió. El centro
+   * de mando lo muestra para que el operador vea por qué se eligió ese
+   * hospital y no otro.
+   */
+  message: string;
 }
