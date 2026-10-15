@@ -23,15 +23,19 @@
 <details>
   <summary>📋 Tabla de Contenidos</summary>
   <ol>
-    <li><a href="#acerca-del-proyecto">Acerca del Proyecto</a></li>
+    <li><a href="#el-problema">El problema</a></li>
+    <li><a href="#qué-hace-vitalroute">Qué hace VitalRoute</a></li>
+    <li><a href="#de-una-llamada-a-una-ambulancia-en-camino">De una llamada a una ambulancia en camino</a></li>
+    <li><a href="#cómo-correrlo">Cómo correrlo</a></li>
     <li><a href="#construido-con">Construido con</a></li>
     <li><a href="#arquitectura-del-sistema">Arquitectura del Sistema</a></li>
     <li><a href="#prerrequisitos">Prerrequisitos</a></li>
     <li><a href="#instalación">Instalación</a></li>
-    <li><a href="#uso-y-características">Uso y Características</a></li>
+    <li><a href="#el-centro-de-mando">El centro de mando</a></li>
     <li><a href="#capa-en-tiempo-real">Capa en Tiempo Real</a></li>
     <li><a href="#el-agente">El Agente</a></li>
     <li><a href="#pruebas">Pruebas</a></li>
+    <li><a href="#límites-conocidos">Límites conocidos</a></li>
     <li><a href="#hoja-de-ruta">Hoja de Ruta</a></li>
     <li><a href="#contacto">Contacto</a></li>
   </ol>
@@ -39,9 +43,116 @@
 
 <br />
 
-## 🩺 Acerca del Proyecto
+## 🩺 El problema
 
-**VitalRoute** es un sistema inteligente de triaje y enrutamiento médico diseñado para evaluar rápidamente la severidad de las emergencias médicas y orquestar el flujo de datos hacia los centros de atención adecuados en tiempo real. Este proyecto actúa como un agente autónomo para optimizar la toma de decisiones clínicas.
+En una ciudad como Ciudad de México, quien contesta una llamada al número de
+emergencias tiene que resolver tres cosas al mismo tiempo y con la persona
+todavía al teléfono: qué tan grave está el paciente, qué hospital puede
+recibirlo y qué ambulancia está más cerca.
+
+Esas tres respuestas viven en lugares distintos. La gravedad sale de los signos
+vitales que alguien alcanza a dictar. La disponibilidad de camas está en el
+sistema de cada hospital. La posición de las unidades, en otro tablero. Cruzar
+todo eso a mano cuesta minutos, y en un paro respiratorio o un trauma grave los
+minutos son el tratamiento.
+
+El resultado conocido es que una ambulancia salga hacia un hospital que ya está
+saturado, y que el traslado termine con una segunda vuelta hacia otro.
+
+<p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
+
+## 🎯 Qué hace VitalRoute
+
+VitalRoute recibe el reporte de la emergencia escrito en lenguaje normal, como
+lo dicta el operador que está atendiendo la llamada, y devuelve una decisión
+completa de despacho: nivel de triaje, hospital destino, ambulancia asignada y
+ruta. Todo lo que pasa después queda a la vista en un centro de mando que se
+actualiza solo.
+
+Por dentro son tres piezas que se pueden leer por separado:
+
+*   Un **agente autónomo** con su propio ciclo de razonamiento, escrito a mano
+    sin librerías de agentes. Conversa con Grok, decide qué herramienta usar y
+    la ejecuta hasta cerrar la tarea.
+*   Un **motor de decisión** en Python que calcula el triaje a partir de los
+    signos vitales y consulta en MySQL qué hospital tiene cama disponible más
+    cerca del paciente.
+*   Un **gateway en tiempo real** que publica una sola decisión y deja que tres
+    tableros reaccionen en paralelo: la tablet del paramédico, el hospital que
+    va a recibir y el centro de mando.
+
+<p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
+
+## 📞 De una llamada a una ambulancia en camino
+
+**Lo que entra.** El reporte tal como se dicta, sin formato ni formulario:
+
+```sh
+cd agent
+npm run dev -- "Paciente Ana Reyes, atropellada en Paseo de la Reforma. \
+No responde y respira con dificultad. Pulso 138, presion 78, oxigeno 81. \
+lat 19.4270 lon -99.1677"
+```
+
+**Lo que sale.** El agente lee el reporte, extrae los signos vitales, llama a
+la herramienta de despacho y responde:
+
+```text
+=== Respuesta del agente ===
+Paciente Ana Reyes clasificada como CRITICA (triaje 9).
+Se despachó la ambulancia AMB-01 (placa CDMX-4471) al Hospital General de
+México Dr. Eduardo Liceaga, a 2.3 km del lugar. El hospital ya recibió la
+alerta de trauma entrante.
+
+--- Resumen de la tarea ---
+Pasos:        2
+Herramientas: despachar_emergencia
+Tokens:       3168 (entrada 2747, salida 421)
+Costo:        USD 0.0075
+Duracion:     8.9 s
+```
+
+En el mismo instante, sin recargar nada, el centro de mando dibuja la ambulancia
+saliendo hacia el paciente, el hospital destino levanta su alerta de trauma
+entrante con la hora estimada de llegada, y la tablet del paramédico recibe la
+ruta cifrada.
+
+El costo promedio medido es de **USD 0.0065 por tarea**. El detalle de las tres
+corridas está en [`docs/reporte-tecnico-s1.md`](docs/reporte-tecnico-s1.md).
+
+<p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
+
+## ⚡ Cómo correrlo
+
+Con Docker, Node 20 y Python 3.10 instalados, son cinco pasos. El detalle de
+cada uno está más abajo en [Instalación](#instalación).
+
+```sh
+# 1. Variables de entorno (incluye tu llave del panel del reto)
+cp .env.example .env
+
+# 2. Base de datos MySQL con el esquema ya cargado
+docker compose up -d
+
+# 3. Motor de decisión (Python)
+cd core && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cd app && uvicorn main:app --port 5000
+
+# 4. Gateway y WebSockets (otra terminal)
+cd api && npm install && npm run dev
+
+# 5. Centro de mando (otra terminal)
+cd web && npm install && npm run dev
+```
+
+El centro de mando queda en **http://localhost:5173**. Para correr el agente
+contra el sistema ya levantado:
+
+```sh
+cd agent && npm install
+npm run dev -- "tu reporte de emergencia aquí"
+```
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 
@@ -53,6 +164,7 @@ Las tecnologías clave utilizadas en este proyecto son:
 *   **[Node.js / TypeScript]** - API Gateway y WebSockets
 *   **[MySQL]** - Base de datos principal con Triggers y Store Procedures
 *   **[JavaScript / TypeScript]** - Dashboard frontend reactivo
+*   **[Grok]** - Modelo de razonamiento del agente, vía el gateway del reto
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 
@@ -82,14 +194,14 @@ VitalRoute/
 │   └── package.json
 ├── web/                   # 🖥️ [Dev B] Centro de mando reactivo (Frontend)
 │   ├── src/
-│   │   ├── components/    # Mapa, alertas, inventario, bitácora, captura
-│   │   ├── hooks/         # Conexión WebSocket y estado en vivo
-│   │   ├── lib/           # Tipos del contrato con el gateway
+│   │   ├── components/    # Mapa, decisión del agente, alertas, inventario
+│   │   ├── hooks/         # Conexión WebSocket, estado en vivo y dictado
+│   │   ├── lib/           # Tipos, geocodificación y cálculos de distancia
 │   │   └── App.tsx        # Composición del tablero
 │   └── package.json
 ├── agent/                 # 🤖 [Dev B] Agente autónomo (framework propio)
 │   ├── src/
-│   │   ├── core/          # El ciclo del agente y su prompt
+│   │   ├── core/          # El ciclo del agente, su prompt y el costo
 │   │   ├── llm/           # Cliente de Grok y modelo falso para ensayos
 │   │   ├── tools/         # Catálogo de herramientas
 │   │   └── index.ts       # Entrada por línea de comandos
@@ -118,7 +230,7 @@ VitalRoute/
 1. Clona el repositorio
    ```sh
    git clone https://github.com/santiagoosorio0708e-wq/Vital-Route.git
-   cd VitalRoute
+   cd Vital-Route
    ```
 
 2. Configura las variables de entorno
@@ -127,9 +239,22 @@ VitalRoute/
    ```
    > **Nota de Seguridad:** NUNCA escribas API Keys ni contraseñas directamente en el código base (`hardcoding`). El archivo `.env` ya se encuentra configurado en `.gitignore`. Utiliza variables de entorno para cualquier credencial externa.
 
+   Dentro del `.env` hay dos valores que debes generar tú:
+
+   ```sh
+   # Firma de los tokens internos entre el gateway y el core
+   node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+
+   # Cifrado AES-256-GCM de las coordenadas que viajan a la tablet
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+   La llave del agente (`AGENT_API_KEY`) se saca del panel del reto y se pega
+   en el `.env`. No se escribe en el código ni se sube al repositorio.
+
 3. Inicia la Base de Datos
    ```sh
-   docker-compose up -d
+   docker compose up -d
    ```
 
 4. Instala dependencias para la API y el Web
@@ -141,19 +266,34 @@ VitalRoute/
 5. Configura el entorno Python
    ```sh
    cd ../core
-   python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
+   python -m venv .venv
+   source .venv/bin/activate  # En Windows: .venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 
-## 🚀 Uso y Características
+## 🖥 El centro de mando
 
-*   **Triaje Automatizado**: Evaluación matemática en el backend con algoritmos Python.
-*   **Actualizaciones en Tiempo Real**: Notificaciones instantáneas sobre pacientes en estado crítico vía WebSockets.
-*   **Dashboard Centralizado**: Centro de control visual para monitoreo general de la red médica.
-*   **Triggers Base de Datos**: Automatización a nivel de base de datos para auditorías o cálculos en inserción.
+La pantalla está hecha para alguien que está atendiendo una llamada, no para
+alguien que sabe leer coordenadas. En ningún momento se escribe una latitud.
+
+*   **El lugar se dice, no se calcula.** Se escribe la dirección y aparecen
+    sugerencias, se toma la ubicación del dispositivo, o se marca el punto en
+    el mapa. El botón *Dictar* escribe el motivo de la llamada con la voz
+    mientras el operador escucha a quien reporta.
+*   **El mapa no interrumpe.** Un clic suelto no coloca nada: hay que pedir
+    *Marcar en el mapa* a propósito, y el punto se puede arrastrar después para
+    corregirlo. El zoom tiene sus botones abajo a la derecha, la rueda avanza
+    en pasos finos y hay un botón para volver a Ciudad de México cuando uno se
+    pierde.
+*   **Se ve lo que decidió el agente, no solo el resultado.** El panel
+    *Decisión del agente* muestra el nivel de triaje, el hospital elegido, la
+    distancia, la llegada estimada y el motivo que dio el motor de decisión.
+*   **La flota se lee de un vistazo.** Gris si está disponible, ámbar mientras
+    va por el paciente, roja con la torreta encendida durante el traslado y
+    verde al entregar. La línea llena es el tramo que está recorriendo; la
+    punteada, el que falta.
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 
@@ -178,21 +318,6 @@ suscriptores reaccionan en paralelo y de forma independiente:
 El detalle completo (salas, tópicos, seguridad, límites conocidos y catálogo de
 endpoints y eventos) está en
 [`docs/arquitectura-tiempo-real.md`](docs/arquitectura-tiempo-real.md).
-
-### Levantar el entorno en tiempo real
-
-Antes de arrancar, genera la llave de cifrado y pégala en el `.env`:
-
-```sh
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Con la base de datos y el core de Python ya corriendo, en dos terminales:
-
-```sh
-cd api && npm run dev     # gateway y WebSockets en el puerto 3000
-cd web && npm run dev     # centro de mando en el puerto 5173
-```
 
 El centro de mando lee la URL del gateway de `VITE_GATEWAY_URL`. Copia
 `web/.env.example` a `web/.env.local` si cambiaste el puerto.
@@ -245,6 +370,22 @@ Para ejecutar las pruebas en cada entorno:
 
 *   **Core (Python)**: `pytest tests/`
 *   **API (Node)**: `npm run test`
+*   **Agente**: `./pruebas/correr.sh` desde `agent/`
+
+<p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
+
+## ⚠️ Límites conocidos
+
+Lo que todavía no hace, dicho de frente:
+
+*   El triaje se calcula solo con pulso, presión y oxígeno. No considera la
+    edad del paciente ni el mecanismo de la lesión.
+*   La disponibilidad de camas está simulada en la base de datos; no hay
+    conexión con el sistema real de ningún hospital.
+*   Las distancias y los tiempos son en línea recta. No hay ruteo por calles
+    ni tráfico.
+*   El catálogo de hospitales es un conjunto reducido de la Ciudad de México,
+    suficiente para demostrar el flujo completo.
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
 
@@ -256,6 +397,9 @@ Para ejecutar las pruebas en cada entorno:
 - [x] Desarrollar API Gateway en Node.js y orquestación WebSocket (Dev B).
 - [x] Construir dashboard de monitoreo en tiempo real (Dev B).
 - [x] Integrar Core Python con API Gateway vía REST autenticado con JWT.
+- [x] Agente autónomo con framework propio conectado a Grok (Dev B).
+- [ ] Catálogo real de hospitales de la Ciudad de México (CLUES / DENUE).
+- [ ] Ruteo por calles y tiempos con tráfico.
 - [ ] Despliegue a producción.
 
 <p align="right">(<a href="#readme-top">volver al inicio</a>)</p>
